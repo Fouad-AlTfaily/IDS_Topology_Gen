@@ -1,0 +1,121 @@
+# ============================================================
+# IDS_Topology_Gen -- central configuration
+#
+# Every tunable value of the pipeline lives here. The values below are the
+# ones used to produce the thesis results (identical across the three
+# original generation_same / generation_smaller / generation_larger folders).
+# Changing any of them changes the results.
+#
+# The scale is NOT chosen here: pass --scale to run_pipeline.py.
+# ============================================================
+
+# ------------------------------------------------------------------
+# NETWORK SCALES
+# ------------------------------------------------------------------
+# Step 2 generates one synthetic graph per scale (in this order) under
+# results/step2/<scale>/. Steps 3-5 then consume the graph of the scale
+# selected with run_pipeline.py --scale.
+#   factor     : new_nodes = round(factor * original_nodes)
+#   seed_id    : per-class graph seed = seeds.topology_master
+#                                       + 1000 * (class_index + 1) + seed_id
+#   out_prefix : root of every scale-dependent output (generation, final
+#                dataset, validation). null keeps the original un-prefixed
+#                layout under results/ (used for "same").
+scales:
+  same:
+    factor: 1.0
+    seed_id: 0
+    out_prefix: null
+  larger:
+    factor: 2.0
+    seed_id: 1
+    out_prefix: results/large_scale
+  smaller:
+    factor: 0.5
+    seed_id: 2
+    out_prefix: results/small_scale
+
+# ------------------------------------------------------------------
+# SEEDS
+# ------------------------------------------------------------------
+seeds:
+  random: 42            # global RNG seed (numpy / random / torch) for Steps 3-5
+  split: 42             # stratified train/val/test split of the real flows
+  louvain: 42           # Louvain community detection (Step 1 and Level 1)
+  topology_master: 42   # Step 2 IP reservoir + per-class graph seeds
+
+# ------------------------------------------------------------------
+# DATA PREPARATION / FINGERPRINTING
+# ------------------------------------------------------------------
+data:
+  min_class_rows: 500   # project minimum class size (flagged, not dropped)
+
+# ------------------------------------------------------------------
+# TOPOLOGY GENERATION (Step 2)
+# ------------------------------------------------------------------
+topology:
+  min_nodes: 2                    # floor so a scaled-down class still forms a graph
+  reservoir_base: 10.0.0.0/8      # invented-IP pool
+  reservoir_size: 10000
+
+# ------------------------------------------------------------------
+# REAL-DATA SPLIT + SUPPORT / BALANCING (Steps 3 and 4)
+# ------------------------------------------------------------------
+split:
+  train: 0.80
+  val: 0.10
+  test: 0.10
+
+balancing:
+  min_support: 10       # a condition is "supported" iff train rows >= 10
+  max_weight: 5.0       # max oversampling factor (min weight = 1 / max_weight)
+
+# ------------------------------------------------------------------
+# CTGAN (attack = Step 3, benign = Step 4)
+# ------------------------------------------------------------------
+# The trained models in results/step3_ctgan/models and
+# results/step4_benign/models are REUSED; training only happens when
+# STEP3_ALLOW_TRAIN=1 / STEP4_ALLOW_TRAIN=1 is set explicitly.
+ctgan:
+  epochs: 300
+  batch_size: 500
+  enforce_rounding: true
+  enforce_min_max_values: true
+  verbose_attack: true    # attack models print CTGAN's own progress
+  verbose_benign: false   # benign models use step4_progress's live epoch bar
+
+# ------------------------------------------------------------------
+# FLOW GENERATION BATCHING (crash-recovery granularity; changing these
+# changes the batch_XXXX file layout)
+# ------------------------------------------------------------------
+generation:
+  attack:
+    edges_per_batch: 25
+    max_rows_per_batch: 100000
+  benign:
+    edges_per_batch: 200
+    max_rows_per_batch: 50000
+  resample_rounds: 6              # re-draw rounds for physically-invalid rows
+  sample_max_tries_per_batch: 500
+
+# ------------------------------------------------------------------
+# VALIDATION (Step 5)
+# ------------------------------------------------------------------
+validation:
+  level2_statistical:
+    max_ks_sample: 50000          # per side, per (class, feature), seeded
+    alpha: 0.05
+  level3_egraphsage:
+    architecture: "E-GraphSAGE-style edge classifier (2 layers, mean aggregation over incident edges, edge features carried in the message)"
+    hidden_dim: 128
+    num_layers: 2
+    dropout: 0.2
+    optimizer: Adam
+    learning_rate: 0.001
+    weight_decay: 0.0005
+    epochs: 300
+    full_batch: true
+    class_weighted_loss: true     # inverse-frequency, per training set only
+    max_train_edges: 800000       # reproducible stratified cap (per condition)
+    min_edges_per_class: 5000     # keep rare classes intact when capping
+    seeds: [42, 1, 2]             # multi-seed mean +/- std

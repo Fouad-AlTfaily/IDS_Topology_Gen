@@ -1,0 +1,14 @@
+# Versions used to produce the thesis results (see results/**/reports/environment.txt;
+# Python 3.13, Google Colab, Tesla T4 GPU, CUDA 12.8).
+numpy==2.5.2
+pandas==2.3.3
+scipy==1.18.1
+scikit-learn==1.9.0
+networkx==3.6.1
+python-louvain==0.16
+matplotlib==3.10.0
+sdv==1.38.2
+ctgan==0.12.1
+torch==2.11.0
+tqdm
+pyyaml>=6.0

@@ -1,0 +1,24 @@
+# Python / Jupyter
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Datasets (raw + cleaned NF-ToN-IoT CSVs); only the empty-folder placeholder is kept
+data/*
+!data/.gitkeep
+
+# Pipeline outputs and the original three folders (kept locally only)
+results/
+legacy/
+
+# Large pipeline outputs: generated flows, splits, graphs, trained models
+*.csv
+*.parquet
+*.pkl
+*.pt
+*.pth
+*.npy
+*.npz
+
+# Temporary files written by the atomic writers
+*.tmp
